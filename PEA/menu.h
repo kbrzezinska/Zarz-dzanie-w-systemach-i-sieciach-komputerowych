@@ -47,7 +47,7 @@ private:
 			break;
 
 		case 2:
-			k.pobierz("tsp_6_2.txt");
+			k.pobierz("tsp.txt");
 			break;
 		case 3:
 			k.pobierz("tsp_10.txt");
