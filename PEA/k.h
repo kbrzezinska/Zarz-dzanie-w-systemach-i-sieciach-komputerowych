@@ -8,25 +8,28 @@
 #include <stdlib.h> 
 #include <ctime>
 #include "timer.h"
-
+#include <mutex>
 
 using std::string;
 using std::cout;
 using std::endl;
 using std::vector;
+
+std::mutex mutex; 
 class K
 {
-private:
+public:
 	Timer t;
 	int N = 0,  weight = 0;
 	int best_w = 999999;
 	vector<int>v ;
+	int threads=3;
 	vector<vector<int>> k;
 	vector<int>h;
 	vector<vector<int>> matrix;
 	vector<vector<int>> dp;
-	int dynamic(int poz, int visited);//liczy alg prog dynamic 
-
+	int dynamic(int poz, int visited, int id, int *weightt);//liczy alg prog dynamic 
+	int download(std::string FILE_IN);
 
 	//int reduce(int k);//redukuje macierz bb
 	//void  edge(int ii, int jj);
@@ -165,31 +168,68 @@ void K::brute_force()
 	cout << endl << "iteracja: " << iter-1<< endl;
 }
 
-int K:: dynamic(int pos,int visited)
+int K:: dynamic(int pos,int visited,int id,int *waga)
 {
 	
-
 	if (visited == ((1 << matrix.size()) - 1))//ostatnie
 		return matrix[pos][0]; 
 
-	if (dp[pos][visited] != INT_MAX)//bylo
+	
+
+
+	std::unique_lock<std::mutex> guard(mutex);
+	cout << "pocz po lock prze dp: " << id << "-pos " << pos << "visited "<<visited<<endl;
+
+	if (dp[pos][visited] != INT_MAX && *waga!=0)////////////////////////Bl¹d ,wywala sie na tej linijce
+	{
+		cout << "pocz po lock: " << id << "-pos " << pos <<  endl;
+		
+
+		guard.unlock();
+		
 		return dp[pos][visited];
+	}
+	guard.unlock();
+
+	
 
 	for (int i = 0; i < matrix.size(); ++i)
 	{
 		// can't visit ourselves unless we're ending & skip if already visited
-		if (i == pos || (visited & (1 << i)))//AND !=0  isc glebiej
+		if (i == pos || (visited & (1 << i)))
 			continue;
+
 		
-		
-		weight = matrix[pos][i] + dynamic(i, visited | (1 << i));//OR
-	
-		if (weight < dp[pos][visited]){
-			dp[pos][visited] = weight;
+
+		if (pos == 0 && i == (1 + ((int)(matrix.size() - 1) / threads)*id) && id!=threads) {
+			
+			//cout <<"id: "<< id << "- " << (1 + ((int)(matrix.size() - 1) / threads)*id) << endl;
+			 return 0;
+		} 
+		if (pos == 0 && i < (((int)(matrix.size() - 1) / threads) * (id - 1)) + 1 && id!=threads)
+
+		{
+			//cout << "st id: " << id << "- " << (((int)(matrix.size() - 1) / threads) * (id - 1)) + 1 << endl;
+
+			continue; //start
+		}
+
+		*waga = matrix[pos][i] + dynamic(i, visited | (1 << i),id,waga);//OR
+
+
+		std::unique_lock<std::mutex> lck(mutex);
+
+		if (*waga < dp[pos][visited]){
+			dp[pos][visited] = *waga;
 		//	kk[pos] = i;
+
 			k[pos][visited] = i;
+
+
 			
 		}
+		lck.unlock();
+
 	}
 	
 	return dp[pos][visited];
@@ -198,7 +238,7 @@ int K:: dynamic(int pos,int visited)
 
 void K::d(){
 	t.start = t.startTimer();
-	cout << "waga: " << dynamic(0, 1) << endl;
+	//cout << "waga: " << dynamic(0, 1) << endl;
 	t.end = t.endTimer();
 	timeD = t.end.QuadPart - t.start.QuadPart;
 	cout <<0<<"->"<< k[0][1]<<"->";
@@ -217,209 +257,3 @@ void K::d(){
 }
 
 
-/*
-int K::reduce(int k)
-{
-	int min, cost = 0; int ii, jj;
-	for (int i = 0; i < N; i++)
-	{
-		min = INT_MAX;
-		for (int j = 0; j < N; j++)
-		{
-			if (j != i && matrix[i][j] != -1)
-			{
-				if (min > matrix[i][j]){ min = matrix[i][j]; ii = i; jj = j; }
-				//min = fmin(min, matrix[i][j]);//najniejsza wartosc w wierszu
-			}
-			if(j==i){ matrix[i][j] = -1; }//przekatna=inf
-		}
-		if ( min!=INT_MAX){
-			for (int j = 0; j < N; j++)
-			{
-				if (j != i && matrix[i][j] != -1)
-				{
-					matrix[i][j] = matrix[i][j] - min;//redukcja wierszy
-					if (k == N - 2 && min != 0 ){
-						pair.first = ii; pair.second = jj;
-						road.push_back(pair); cout << ii << "" << jj << endl;
-					}
-				}
-			}cost += min;
-		}
-		
-	}
-	
-	
-	for (int i = 0; i < N; i++)
-	{
-		min = INT_MAX;
-		for (int j = 0; j < N; j++)
-		{
-			if (i != j && matrix[j][i] != -1)
-			{
-				if (min > matrix[j][i]){ min = matrix[j][i]; ii = j; jj = i; }
-				//min = fmin(min, matrix[j][i]);//najmniejsza wartoœc w kolumnie
-			}
-
-		}
-		if ( min != INT_MAX)
-		{		
-			for (int j = 0; j < N; j++)
-			{
-				if (i != j && matrix[j][i]!=-1)
-				{
-					matrix[j][i] = matrix[j][i] - min;//redukcja kolumny
-					if (k == N - 2 && min!=0){
-						pair.first = ii; pair.second = jj;
-						road.push_back(pair); cout << ii << "" << jj << endl;
-					}
-				}
-			}cost += min;
-		}
-		
-	}
-	return cost;
-}
-void K:: edge(int ii, int jj)
-{
-	
-	for (int i = 0; i < N; i++)
-	{
-		matrix[ii][i] = -1;
-		matrix[i][jj] = -1;
-	
-	}
-	
-}
-void K::bb()
-{
-	std::pair<int, int>p;//wiersz,kolumna
-	vector<std::pair<int, int>>r; 
-	vector<vector<int>>m(N, vector<int>(N));
-	m = matrix;//zapamietujemy macierz wag
-	int granica = 0;
-	// cost = matrix;
-	vector<int>t(N);
-	int y, yw, yk, wk, xw, xk, x, iw, ik, jw, jk;;
-	for (int k = 0; k < N -1; k++){
-
-		granica += reduce(k);// display();
-		int maxw = 0, maxk = 0, max = 0;
-
-		for (int i = 0; i < N; i++)
-		{
-			int minw = INT_MAX, mink = INT_MAX;
-			for (int j = 0; j < N; j++)
-			{
-				if (matrix[i][j]>0)
-				{
-					if (minw > matrix[i][j]){ minw = matrix[i][j];  yw = i; xw = j; }//najmniejszy element w weirsz
-				}
-
-				if (matrix[j][i]>0)
-				{
-					if (mink > matrix[j][i]){
-						mink = matrix[j][i];  yk = j; xk = i;
-						//cout  << "yk" << yk << " xk" << xk << endl; 
-					}//najmniejszy element w weirsz
-				}
-
-
-
-			}
-			if (maxw < minw  &&  minw != INT_MAX){ maxw = minw; jw = xw, iw = yw; }
-			if (maxk < mink  &&  mink != INT_MAX){ maxk = mink; ik = yk, jk = xk; }
-		}
-		// cout << "max:" << max << "x"<<x<<"y"<<y<<endl;; 
-		
-			
-			
-				if (k>1)
-				{
-					cout << "kkkk" << endl;
-					cout << "kss: " << r.size() << endl;
-					r = road;
-					int t = r[r.size()-1 ].first, tt = r[r.size() -1].second;
-					while (!r.empty())
-					{
-						cout << r.front().first << " " << r.front().second << endl;
-						r.erase(r.begin());
-					}r = road;
-					
-					r.pop_back();
-
-						
-						
-						while (!r.empty())
-						{
-
-							if (t == r.front().second){ matrix[tt][r.front().first] = -1; break; }//2132
-							
-							if (tt == r.front().first){ matrix[r.front().second][t] = -1; break; }
-
-							 r.erase(r.begin());  
-							
-					}
-						
-				}
-			
-
-		
-
-		if (maxw >= maxk)
-		{
-			cout << "maxw:" << maxw << endl;
-			max = maxw; y = iw; x = jw;
-			for (int i = 0; i < N; i++)
-			{
-				if (matrix[y][i] == 0)
-				{
-					edge(y, i); //cout << "i:" << i << "j:" << y << endl;
-					pair.first = y; pair.second = i;
-					road.push_back(pair);
-					matrix[i][y] = -1; break;//macierz nieskrócona
-				}
-			}
-		}
-		if(maxk>maxw){
-			cout << "maxk:" << maxk << endl;
-			max = maxk; y = ik; x = jk;
-
-			for (int i = 0; i < N; i++)
-			{
-				if (matrix[i][x] == 0)
-				{
-					edge(i, x); //cout << "i:" << i << "j:" << y << endl;
-					pair.first = i; pair.second = x;
-					road.push_back(pair);
-					matrix[x][i] = -1; break;//macierz nieskrócona
-				}
-			}
-		}
-		granica += max;
-
-		cout << "max:" << max << "x" << x << "y" << y << endl;;
-		cout << "r:" << road.size() << endl;
-		r = road;
-	}
-	best_w = 0; matrix = m;
-	while (!road.empty())
-	{
-		int  r = road.front().first;
-		int rr = road.front().second;
-		road.erase(road.begin());
-		t[r] = rr;
-		best_w += matrix[r][rr];
-		cout << r << " " << rr << " " << matrix[r][rr] << endl;
-	}
-	int j = 0; cout << j;
-	for(int i = 0; i < N;i++ )
-	{
-		cout << "->" << t[j] ;
-		j = t[j];
-	}
-	cout << endl;
-	 display();
-	 cout <<endl<< granica << endl;
-	 cout << "waga "<< best_w << endl;
-}*/
