@@ -5,6 +5,7 @@
 #include<fstream>
 #include <algorithm>
 #include <vector>
+#include <windows.h>
 #include <stdlib.h> 
 #include <ctime>
 #include "timer.h"
@@ -15,6 +16,7 @@ using std::cout;
 using std::endl;
 using std::vector;
 
+
 std::mutex mutex; 
 class K
 {
@@ -24,11 +26,13 @@ public:
 	int best_w = 999999;
 	vector<int>v ;
 	int threads=3;
-	vector<vector<int>> k;
+	//int** k;
 	vector<int>h;
 	vector<vector<int>> matrix;
+	//int** dp;
 	vector<vector<int>> dp;
-	int dynamic(int poz, int visited, int id, int *weightt);//liczy alg prog dynamic 
+	vector<vector<int>> k;
+	int dynamic(int poz, long long visited, int id, int *weightt);//liczy alg prog dynamic 
 	int download(std::string FILE_IN);
 
 	//int reduce(int k);//redukuje macierz bb
@@ -42,38 +46,9 @@ public:
 	void brute_force();	
 	//int best_w = 999999;
 	void d();//wyswietla wynik dynamic()
-	//void bb();//bound and branch
-	void gen(int n);//gen maciez
+
 };
-void K::gen(int n)
-{
 
-	N = n;
-	matrix = vector<vector<int>>(N, vector<int>(N));
-	
-	v.erase(v.begin(),v.end());
-	h.erase(h.begin(), h.end());
-	for (int i = 0; i < n; i++)
-	{
-		for (int j = 0; j < n; j++)
-		{
-			if (i == j){ matrix[i][j] = - 1; }
-			else{ matrix[i][j] = 1 + rand() % 40; }
-		}
-	}
-
-	for (int i = 1; i < N; i++)
-	{
-		v.push_back(i); //do bb
-	}
-
-	dp = vector<vector<int>>(matrix.size());//do dynamic
-	k = vector<vector<int>>(matrix.size());//dynamic
-	for (auto& neighbors : dp)
-		neighbors = vector<int>((1 << matrix.size()) - 1, INT_MAX);
-	for (auto& neighbors : k)
-		neighbors = vector<int>((1 << matrix.size()) - 1, NULL);
-}
 void K::pobierz(string s)
 {
 	v.erase(v.begin(), v.end());
@@ -83,7 +58,6 @@ void K::pobierz(string s)
 	plik >> this->N;
 	//matrix = new int *[N];
 	matrix = vector<vector<int>>(N, vector<int>(N));
-	
 	//kk = new int[ N];
 	
 	for (int i = 0; i < N && !plik.eof(); i++)
@@ -101,13 +75,33 @@ void K::pobierz(string s)
 	{
 		v.push_back(i); //do bb
 	}
+	long long ss = pow(2, matrix.size()) - 1;//22
 
 	dp = vector<vector<int>>(matrix.size());//do dynamic
 	k = vector<vector<int>>(matrix.size());//dynamic
 	for (auto& neighbors : dp)
-		neighbors = vector<int>((1 << matrix.size()) - 1, INT_MAX);
+		neighbors = vector<int>(ss, INT_MAX);
 	for (auto& neighbors : k)
-		neighbors = vector<int>((1 << matrix.size()) - 1, NULL);
+		neighbors = vector<int>(ss, NULL);
+
+
+/*	dp = new int*[(matrix.size())];//do dynamic
+	k = new int*[(matrix.size())];//dynamic
+
+	long long ss = pow(2, matrix.size()) - 1;
+	cout << ss << endl;
+	for (int i = 0; i <1; i++)
+	{
+		dp[i] = new int [5];
+		k[i] = new int[5];
+
+		for (long long j = 0; j <(long long)(pow(2, matrix.size() )- 1); j++)
+		{
+			dp[i][j] = INT_MAX;
+			k[i][j] = NULL;
+		}
+	}*/
+	
 }
 
 void K::display(){
@@ -126,110 +120,74 @@ void K::display(){
 	
 }
 
-void K::brute_force()
-{
-	best_w = 9999999;
-	t.start = t.startTimer();
-	int iter = 0;
-	cout << "load";
-	do{
-		weight = 0;
-		iter++;
-		for (int i = 0; i < N-1;i++)
-		{
-			
-			
-			if (i == 0){ weight += matrix[0][v[0]]; }
-			else 
-			{
-				
-				weight += matrix[v[i - 1]][v[i]]; 
-				
-			}
-		}
-	
-		weight += matrix[v[N - 2]][0]; 
-		if (best_w > weight){ best_w = weight; h = v; }
-		
-	} while (std::next_permutation(v.begin(),v.end()));
 
-	t.end = t.endTimer();
-	timeBF = t.end.QuadPart - t.start.QuadPart;
-	cout << "\b\b\b\b";
 
-	cout << 0<< "-> ";
-	while (!h.empty())
-	{
-		int y = h.front(); h.erase(h.begin());
-		cout << y << "-> ";
-	}
-	cout << 0;
-	cout << endl << "waga: " << best_w << endl;
-	cout << endl << "iteracja: " << iter-1<< endl;
-}
-
-int K:: dynamic(int pos,int visited,int id,int *waga)
+int K:: dynamic(int pos,long long visited,int id,int *waga)
 {
 	
-	if (visited == ((1 << matrix.size()) - 1))//ostatnie
+	if (visited == (long long)(pow(2,matrix.size()) - 1))//ostatnie
 		return matrix[pos][0]; 
 
 	
 
 
-	std::unique_lock<std::mutex> guard(mutex);
-	cout << "pocz po lock prze dp: " << id << "-pos " << pos << "visited "<<visited<<endl;
-
+	mutex.lock();
 	if (dp[pos][visited] != INT_MAX && *waga!=0)////////////////////////Bl¹d ,wywala sie na tej linijce
 	{
-		cout << "pocz po lock: " << id << "-pos " << pos <<  endl;
 		
 
-		guard.unlock();
+
+		mutex.unlock();
 		
 		return dp[pos][visited];
 	}
-	guard.unlock();
+	mutex.unlock();
+	
 
+	
 	
 
 	for (int i = 0; i < matrix.size(); ++i)
 	{
 		// can't visit ourselves unless we're ending & skip if already visited
-		if (i == pos || (visited & (1 << i)))
+		if (i == pos || (long long)(visited & (long long)(pow(2, i))))
 			continue;
 
 		
 
 		if (pos == 0 && i == (1 + ((int)(matrix.size() - 1) / threads)*id) && id!=threads) {
 			
-			//cout <<"id: "<< id << "- " << (1 + ((int)(matrix.size() - 1) / threads)*id) << endl;
+			//cout <<"id: "<< id << "- stop" << (1 + ((int)(matrix.size() - 1) / threads)*id) << endl;
 			 return 0;
 		} 
 		if (pos == 0 && i < (((int)(matrix.size() - 1) / threads) * (id - 1)) + 1 && id!=threads)
 
 		{
-			//cout << "st id: " << id << "- " << (((int)(matrix.size() - 1) / threads) * (id - 1)) + 1 << endl;
+			//cout << "id: " << id << "- start" << (((int)(matrix.size() - 1) / threads) * (id - 1)) + 1 << endl;
 
 			continue; //start
 		}
 
-		*waga = matrix[pos][i] + dynamic(i, visited | (1 << i),id,waga);//OR
+		*waga = matrix[pos][i] + dynamic(i, (visited + pow(2, i)),id,waga);//OR
 
+		//Sleep(1);
 
-		std::unique_lock<std::mutex> lck(mutex);
-
+		
+		
+		mutex.lock();
 		if (*waga < dp[pos][visited]){
-			dp[pos][visited] = *waga;
-		//	kk[pos] = i;
+			
+			//mutex.lock();
 
+			dp[pos][visited] = *waga;
 			k[pos][visited] = i;
 
-
+			
+			//mutex.unlock();
 			
 		}
-		lck.unlock();
-
+		mutex.unlock();
+		
 	}
 	
 	return dp[pos][visited];
