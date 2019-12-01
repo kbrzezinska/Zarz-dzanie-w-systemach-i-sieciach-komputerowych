@@ -22,6 +22,9 @@ std::mutex mutex;
 int K::dynamic(int pos, long long visited, int id, int *waga)
 {
 
+	if (threads > matrix.size() - 1)threads = matrix.size() - 1;
+	if (id > matrix.size() - 1)return 0;
+	
 	if (visited == (long long)(pow(2, matrix.size()) - 1))//ostatnie
 		return matrix[pos][0];
 
@@ -42,8 +45,7 @@ int K::dynamic(int pos, long long visited, int id, int *waga)
 
 
 
-	if (threads > matrix.size() - 1)threads = matrix.size() - 1;
-	if (id > matrix.size() - 1)return 0;
+	
 
 	for (int i = 0; i < matrix.size(); ++i)
 	{
